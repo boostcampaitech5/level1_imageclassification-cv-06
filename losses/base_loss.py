@@ -20,7 +20,7 @@ class FocalLoss(nn.Module):
 
 
 class LabelSmoothingLoss(nn.Module):
-    def __init__(self, classes=3, smoothing=0.0, dim=-1):
+    def __init__(self, classes=18, smoothing=0.02, dim=-1):
         super(LabelSmoothingLoss, self).__init__()
         self.confidence = 1.0 - smoothing
         self.smoothing = smoothing
@@ -38,7 +38,7 @@ class LabelSmoothingLoss(nn.Module):
 
 # https://gist.github.com/SuperShinyEyes/dcc68a08ff8b615442e3bc6a9b55a354
 class F1Loss(nn.Module):
-    def __init__(self, classes=3, epsilon=1e-7):
+    def __init__(self, classes=18, epsilon=1e-7):
         super().__init__()
         self.classes = classes
         self.epsilon = epsilon
@@ -85,3 +85,15 @@ def create_criterion(criterion_name, **kwargs):
     else:
         raise RuntimeError("Unknown loss (%s)" % criterion_name)
     return criterion
+
+
+class Accuracy():
+    def __init__(self, reduction="mean"):
+        pass
+
+    def forward(self, outputs, labels):
+        preds = torch.argmax(outputs, dim=-1)
+        acc_item = (labels == preds).sum().item() / len(labels)* 100
+
+        return acc_item
+

@@ -51,6 +51,15 @@ class MyDataset(Dataset):
     def __len__(self):
         return len(self.image_paths)
 
+    @staticmethod
+    def denormalize_image(image, mean, std):
+        img_cp = image.copy()
+        img_cp *= std
+        img_cp += mean
+        img_cp *= 255.0
+        img_cp = np.clip(img_cp, 0, 255).astype(np.uint8)
+        return img_cp
+
     def split_dataset(self) -> Tuple[Subset, Subset]:
         """
         데이터셋을 train 과 val 로 나눕니다,
