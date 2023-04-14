@@ -87,13 +87,14 @@ def create_criterion(criterion_name, **kwargs):
     return criterion
 
 
-class Accuracy():
+class Accuracy:
     def __init__(self, reduction="mean"):
         pass
 
-    def forward(self, outputs, labels):
-        preds = torch.argmax(outputs, dim=-1)
-        acc_item = (labels == preds).sum().item() / len(labels)* 100
-
-        return acc_item
-
+    def __call__(self, output, target):
+        with torch.no_grad():
+            pred = torch.argmax(output, dim=-1)
+            assert pred.shape[0] == len(target)
+            acc = (target == pred).sum().item() / len(target)* 100
+            
+            return acc

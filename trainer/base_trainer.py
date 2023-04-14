@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from utils.util import ensure_dir
 
 
 class BaseTrainer:
@@ -22,10 +23,10 @@ class BaseTrainer:
         self.optimizer = optimizer
         self.epochs = args.epochs
         self.save_dir = self._increment_path(os.path.join(args.model_dir, args.name))
+        ensure_dir(self.save_dir)
 
         # configuration to monitor model performance and save best
         self.early_stop = args.early_stop
-        self.max_patient = args.max_patient
 
     @abstractmethod
     def _train_epoch(self, epoch):
@@ -42,6 +43,7 @@ class BaseTrainer:
         patient = 0
         best_val_acc = 0
         best_val_loss = np.inf
+        print("Training Start")
         for epoch in range(1, self.epochs + 1):
             result = self._train_epoch(epoch)
 
@@ -51,26 +53,27 @@ class BaseTrainer:
 
             # print logged informations to the screen
             for key, value in log.items():
-                print(f"{str(key):15<}: {value}")
+                print(f"{str(key):}: {value:.3f}")
 
             # evaluate model performance according to configured metric, save best checkpoint as model_best
-            if val_acc > best_val_acc:
-                print(f"New best model for val accuracy : {val_acc:4.2%}! saving the best model..")
+            if log['val_Accuracy'] > best_val_acc:
+                print(f"New best model for val accuracy : {log['val_Accuracy']:.2f}%! saving the best model..")
                 torch.save(self.model.module.state_dict(), f"{self.save_dir}/best.pth")
-                best_val_acc = val_acc
-                best_val_loss = val_loss
+                best_val_acc = log['val_Accuracy']
+                best_val_loss = log['val_loss']
                 patient = 0
+            else:
+                patient += 1
 
-            torch.save(self.model.module.state_dict(), f"{self.ave_dir}/last.pth")
-            print(f"[Val] acc : {val_acc:4.2%}, loss: {val_loss:4.2} || best acc : {best_val_acc:4.2%}, best loss: {best_val_loss:4.2}")
+            torch.save(self.model.module.state_dict(), f"{self.save_dir}/last.pth")
+            print(f"[Val] acc : {log['val_Accuracy']:.2f}%, loss: {log['val_loss']:.2f} || best acc : {best_val_acc:.2f}%, best loss: {best_val_loss:.2f}")
 
-            patient += 1
-            if self.early_stop and patient > self.max_patient:
+            if self.early_stop < patient:
                 print(f"Early stopping is triggerd at epoch {epoch}")
                 print("Best performance:")
-                print(f"[Val] acc : {val_acc:4.2%}, loss: {val_loss:4.2} || best acc : {best_val_acc:4.2%}, best loss: {best_val_loss:4.2}")
+                print(f"[Val] acc : {log['val_Accuracy']:.2f}%, loss: {log['val_loss']:.4f} || best acc : {best_val_acc:.2f}%, best loss: {best_val_loss:.4f}")
                 break
-
+            
     def _increment_path(self, path, exist_ok=False):
         """Automatically increment path, i.e. runs/exp --> runs/exp0, runs/exp1 etc.
 

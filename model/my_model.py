@@ -1,5 +1,5 @@
 import numpy as np
-from datasets.my_dataset import BaseModel
+from model.base_model import BaseModel
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
