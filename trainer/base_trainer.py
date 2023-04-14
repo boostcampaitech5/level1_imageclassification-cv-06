@@ -1,12 +1,10 @@
 import glob
-import os
 import re
 from abc import abstractmethod
 from pathlib import Path
 
 import numpy as np
 import torch
-from utils.util import ensure_dir
 
 
 class BaseTrainer:
@@ -14,7 +12,7 @@ class BaseTrainer:
     Base class for all trainers
     """
 
-    def __init__(self, model, criterion, metric_ftns, optimizer, args):
+    def __init__(self, model, criterion, metric_ftns, optimizer, save_dir, args):
         self.args = args
 
         self.model = model
@@ -22,8 +20,7 @@ class BaseTrainer:
         self.metric_ftns = metric_ftns
         self.optimizer = optimizer
         self.epochs = args.epochs
-        self.save_dir = self._increment_path(os.path.join(args.model_dir, args.name))
-        ensure_dir(self.save_dir)
+        self.save_dir = save_dir
 
         # configuration to monitor model performance and save best
         self.early_stop = args.early_stop
@@ -56,24 +53,28 @@ class BaseTrainer:
                 print(f"{str(key):}: {value:.3f}")
 
             # evaluate model performance according to configured metric, save best checkpoint as model_best
-            if log['val_Accuracy'] > best_val_acc:
+            if log["val_Accuracy"] > best_val_acc:
                 print(f"New best model for val accuracy : {log['val_Accuracy']:.2f}%! saving the best model..")
                 torch.save(self.model.module.state_dict(), f"{self.save_dir}/best.pth")
-                best_val_acc = log['val_Accuracy']
-                best_val_loss = log['val_loss']
+                best_val_acc = log["val_Accuracy"]
+                best_val_loss = log["val_loss"]
                 patient = 0
             else:
                 patient += 1
 
             torch.save(self.model.module.state_dict(), f"{self.save_dir}/last.pth")
-            print(f"[Val] acc : {log['val_Accuracy']:.2f}%, loss: {log['val_loss']:.2f} || best acc : {best_val_acc:.2f}%, best loss: {best_val_loss:.2f}")
+            print(
+                f"[Val] acc : {log['val_Accuracy']:.2f}%, loss: {log['val_loss']:.2f} || best acc : {best_val_acc:.2f}%, best loss: {best_val_loss:.2f} || patient: {patient}\n"
+            )
 
             if self.early_stop < patient:
                 print(f"Early stopping is triggerd at epoch {epoch}")
                 print("Best performance:")
-                print(f"[Val] acc : {log['val_Accuracy']:.2f}%, loss: {log['val_loss']:.4f} || best acc : {best_val_acc:.2f}%, best loss: {best_val_loss:.4f}")
+                print(
+                    f"[Val] acc : {log['val_Accuracy']:.2f}%, loss: {log['val_loss']:.4f} || best acc : {best_val_acc:.2f}%, best loss: {best_val_loss:.4f}"
+                )
                 break
-            
+
     def _increment_path(self, path, exist_ok=False):
         """Automatically increment path, i.e. runs/exp --> runs/exp0, runs/exp1 etc.
 

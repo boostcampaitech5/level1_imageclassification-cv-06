@@ -116,3 +116,4 @@ logs/
 wandb/
 .DS_Store
 experiment/
+config.json

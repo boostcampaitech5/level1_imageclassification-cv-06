@@ -1,19 +1,21 @@
 import time
-import numpy as np
-import torch
-from torchvision.utils import make_grid
 
-from trainer.base_trainer import BaseTrainer
-from utils.util import inf_loop, MetricTracker
+import torch
+
 import wandb
+from trainer.base_trainer import BaseTrainer
+from utils.util import MetricTracker, inf_loop
+
 
 class Trainer(BaseTrainer):
     """
     Trainer class
     """
-    def __init__(self, model, criterion, metric_ftns, optimizer, args, device,
-                 train_loader, val_loader=None, lr_scheduler=None, len_epoch=None):
-        super().__init__(model, criterion, metric_ftns, optimizer, args)
+
+    def __init__(
+        self, model, criterion, metric_ftns, optimizer, save_dir, args, device, train_loader, val_loader=None, lr_scheduler=None, len_epoch=None
+    ):
+        super().__init__(model, criterion, metric_ftns, optimizer, save_dir, args)
         self.args = args
         self.device = device
         self.train_loader = train_loader
@@ -28,11 +30,11 @@ class Trainer(BaseTrainer):
         self.do_validation = self.val_loader is not None
         self.lr_scheduler = lr_scheduler
         self.log_step = args.log_interval
-        
+
         # metric_fn들이 각 df의 index로 들어감 -> (230414 v1: hard-coded implementation)
-        self.train_metrics = MetricTracker('loss', *[c.__class__.__name__ for c in self.criterion], *['Accuracy', 'F1Score'])
-        self.valid_metrics = MetricTracker('loss', *['Accuracy', 'F1Score'])
-        #print(self.train_metrics._data.index) #['loss', 'CrossEntropyLoss', 'Accuracy', 'F1Score']
+        self.train_metrics = MetricTracker("loss", *[c.__class__.__name__ for c in self.criterion], *["Accuracy", "F1Score"])
+        self.valid_metrics = MetricTracker("loss", *["Accuracy", "F1Score"])
+        # print(self.train_metrics._data.index) #['loss', 'CrossEntropyLoss', 'Accuracy', 'F1Score']
 
     def _train_epoch(self, epoch):
         """
@@ -49,43 +51,45 @@ class Trainer(BaseTrainer):
 
             self.optimizer.zero_grad()
             output = self.model(data)
-            for loss_fn in self.criterion: # [loss_fn1, loss_fn2, ...]
+            for loss_fn in self.criterion:  # [loss_fn1, loss_fn2, ...]
                 loss = loss_fn(output, target)
-                self.train_metrics.update(loss_fn.__class__.__name__, loss.item()) # metric_fn마다 값 update
+                self.train_metrics.update(loss_fn.__class__.__name__, loss.item())  # metric_fn마다 값 update
                 total_loss += loss
 
             total_loss.backward()
             self.optimizer.step()
 
             #  update loss value
-            self.train_metrics.update('loss', total_loss.item())
+            self.train_metrics.update("loss", total_loss.item())
             for met in self.metric_ftns:
-                if met.__class__.__name__ == 'F1Loss':
-                    self.train_metrics.update('F1Score', 1-met(output, target).item()) 
-                else:   
+                if met.__class__.__name__ == "F1Loss":
+                    self.train_metrics.update("F1Score", 1 - met(output, target).item())
+                else:
                     self.train_metrics.update(met.__class__.__name__, met(output, target))
 
             if batch_idx % self.log_step == 0:
-                print(f'Train Epoch: {epoch}/{self.args.epochs} {self._progress(batch_idx)} Loss: {total_loss.item():.6f}')
+                print(f"Train Epoch: {epoch}/{self.args.epochs} {self._progress(batch_idx)} Loss: {total_loss.item():.6f}")
                 log_dict = self.train_metrics.result()
-                for lst in ['Accuracy', 'F1Score']:
+                for lst in ["Accuracy", "F1Score"]:
                     log_dict.pop(lst)
-                wandb.log({'Iter_train_'+k : v for k, v in log_dict.items()}) # logging per log_step (default=20)
+                wandb.log({"Iter_train_" + k: v for k, v in log_dict.items()})  # logging per log_step (default=20)
             if batch_idx == self.len_epoch:
                 break
 
         # 반환할 결과 df 저장
         log = self.train_metrics.result()
-        wandb.log({'Epoch_Acc':log['Accuracy'], 'Epoch_F1':log['F1Score']})
-        print('Train Epoch: {}, Loss: {:.6f}, Acc: {:.3f}'.format(epoch, self.train_metrics.result()['loss'], self.train_metrics.result()['Accuracy']))
+        wandb.log({"Epoch_Acc": log["Accuracy"], "Epoch_F1": log["F1Score"]})
+        print(
+            "Train Epoch: {}, Loss: {:.6f}, Acc: {:.3f}".format(epoch, self.train_metrics.result()["loss"], self.train_metrics.result()["Accuracy"])
+        )
         print(f"train time per epoch: {time.time()-start:.3f}s")
         print()
 
         if self.do_validation:
             val_log = self._valid_epoch(epoch)
-            log.update(**{'val_'+k : v for k, v in val_log.items()}) # val_log output도 넣어서 반환
-            wandb.log({'Epoch_val_'+k : v for k, v in val_log.items()})
-        
+            log.update(**{"val_" + k: v for k, v in val_log.items()})  # val_log output도 넣어서 반환
+            wandb.log({"Epoch_val_" + k: v for k, v in val_log.items()})
+
         if self.lr_scheduler is not None:
             self.lr_scheduler.step()
         return log
@@ -99,37 +103,36 @@ class Trainer(BaseTrainer):
         print("Validation Ongoing")
         self.model.eval()
         self.valid_metrics.reset()
-        figure = None
         total_val_loss = 0
         with torch.no_grad():
             for batch_idx, (data, target) in enumerate(self.val_loader):
                 data, target = data.to(self.device), target.to(self.device)
 
                 output = self.model(data)
-                for loss_fn in self.criterion: # [loss_fn1, loss_fn2, ...]
+                for loss_fn in self.criterion:  # [loss_fn1, loss_fn2, ...]
                     total_val_loss += loss_fn(output, target)
-                
+
                 # update loss value
-                self.valid_metrics.update('loss', total_val_loss.item())
+                self.valid_metrics.update("loss", total_val_loss.item())
                 for met in self.metric_ftns:
-                    if met.__class__.__name__ == 'F1Loss':
-                        self.valid_metrics.update('F1Score', 1-met(output, target).item())
-                    else:   
+                    if met.__class__.__name__ == "F1Loss":
+                        self.valid_metrics.update("F1Score", 1 - met(output, target).item())
+                    else:
                         self.valid_metrics.update(met.__class__.__name__, met(output, target))
-                '''
+                """
                 if figure is None:
                     inputs_np = torch.clone(data).detach().cpu().permute(0, 2, 3, 1).numpy()
                     inputs_np = dataset_module.denormalize_image(inputs_np, dataset.mean, dataset.std)
                     figure = grid_image(
                         inputs_np, target, output, n=16, shuffle=args.dataset != "MaskSplitByProfileDataset"
                     )
-                ''' # 230414 not available
+                """  # 230414 not available
 
         return self.valid_metrics.result()
 
     def _progress(self, batch_idx):
-        base = '[{:>3d}/{}]'
-        if hasattr(self.train_loader, 'n_samples'):
+        base = "[{:>3d}/{}]"
+        if hasattr(self.train_loader, "n_samples"):
             current = batch_idx * self.train_loader.batch_size
             total = self.train_loader.n_samples
         else:

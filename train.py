@@ -7,17 +7,16 @@ import random
 import re
 from importlib import import_module
 from pathlib import Path
-import wandb
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
 
+import wandb
 from datasets.base_dataset import MaskBaseDataset
-from losses.base_loss import create_criterion, Accuracy, F1Loss
+from losses.base_loss import Accuracy, F1Loss, create_criterion
 from trainer.trainer import Trainer
 from utils.util import ensure_dir
 
@@ -88,7 +87,7 @@ def train(data_dir, model_dir, args):
 
     seed_everything(args.seed)
     save_dir = increment_path(os.path.join(model_dir, args.name))
-    label_dir = os.path.join(args.label_dir, 'train_path_label.csv')
+    label_dir = os.path.join(args.label_dir, "train_path_label.csv")
     ensure_dir(save_dir)
 
     # -- settings
@@ -97,9 +96,7 @@ def train(data_dir, model_dir, args):
 
     # -- dataset
     dataset_module = getattr(import_module("datasets.my_dataset"), args.dataset)  # default: MyDataset
-    dataset = dataset_module(
-        data_dir=data_dir, label_dir=label_dir
-    )
+    dataset = dataset_module(data_dir=data_dir, label_dir=label_dir)
     num_classes = dataset.num_classes  # 18
 
     # -- augmentation
@@ -141,32 +138,33 @@ def train(data_dir, model_dir, args):
     criterion = []
     for i in args.criterion:
         criterion.append(create_criterion(i))  # default: [cross_entropy]
-    
+
     opt_module = getattr(import_module("torch.optim"), args.optimizer)  # default: SGD
-    optimizer = opt_module(
-        filter(lambda p: p.requires_grad, model.parameters()),
-        lr=args.lr,
-        weight_decay=5e-4
-    )
+    optimizer = opt_module(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=5e-4)
     scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
 
     # if use Multi-task loss
 
-
     scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
     metrics = [Accuracy(), F1Loss()]
-    
+
     # -- logging
-    with open(os.path.join(save_dir, 'config.json'), 'w', encoding='utf-8') as f:
+    with open(os.path.join(save_dir, "config.json"), "w", encoding="utf-8") as f:
         json.dump(vars(args), f, ensure_ascii=False, indent=4)
 
     # -- train
-    trainer = Trainer(model, criterion, metrics, optimizer,
-                      args=args,
-                      device=device,
-                      train_loader=train_loader,
-                      val_loader=val_loader,
-                      lr_scheduler=scheduler)
+    trainer = Trainer(
+        model,
+        criterion,
+        metrics,
+        optimizer,
+        save_dir,
+        args=args,
+        device=device,
+        train_loader=train_loader,
+        val_loader=val_loader,
+        lr_scheduler=scheduler,
+    )
 
     trainer.train()
 
@@ -195,12 +193,12 @@ if __name__ == "__main__":
     parser.add_argument("--lr_decay_step", type=int, default=config["lr_decay_step"], help="learning rate scheduler deacy step (default: 20)")
     parser.add_argument("--log_interval", type=int, default=config["log_interval"], help="how many batches to wait before logging training status")
     parser.add_argument("--name", default=config["name"], help="model save at {SM_MODEL_DIR}/{name}")
-    parser.add_argument('--early_stop', type=int, default=config["early_stop"], help='Early stop training when 10 epochs no improvement')
+    parser.add_argument("--early_stop", type=int, default=config["early_stop"], help="Early stop training when 10 epochs no improvement")
 
     # Container environment
     parser.add_argument("--data_dir", type=str, default=os.environ.get("SM_CHANNEL_TRAIN", "/opt/ml/input/data/train/images"))
     parser.add_argument("--model_dir", type=str, default=os.environ.get("SM_MODEL_DIR", "./experiment"))
-    parser.add_argument('--label_dir', type=str, default='/opt/ml/input/data/train/')
+    parser.add_argument("--label_dir", type=str, default="/opt/ml/input/data/train/")
     args = parser.parse_args()
     print(args)
 
