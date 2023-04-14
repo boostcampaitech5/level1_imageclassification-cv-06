@@ -34,7 +34,7 @@ def seed_everything(seed):
 
 def get_lr(optimizer):
     for param_group in optimizer.param_groups:
-        return param_group['lr']
+        return param_group["lr"]
 
 
 def grid_image(np_images, gts, preds, n=16, shuffle=False):
@@ -44,7 +44,7 @@ def grid_image(np_images, gts, preds, n=16, shuffle=False):
     choices = random.choices(range(batch_size), k=n) if shuffle else list(range(n))
     figure = plt.figure(figsize=(12, 18 + 2))  # cautions: hardcoded, 이미지 크기에 따라 figsize 를 조정해야 할 수 있습니다. T.T
     plt.subplots_adjust(top=0.8)  # cautions: hardcoded, 이미지 크기에 따라 top 를 조정해야 할 수 있습니다. T.T
-    n_grid = int(np.ceil(n ** 0.5))
+    n_grid = int(np.ceil(n**0.5))
     tasks = ["mask", "gender", "age"]
     for idx, choice in enumerate(choices):
         gt = gts[choice].item()
@@ -52,11 +52,9 @@ def grid_image(np_images, gts, preds, n=16, shuffle=False):
         image = np_images[choice]
         gt_decoded_labels = MaskBaseDataset.decode_multi_class(gt)
         pred_decoded_labels = MaskBaseDataset.decode_multi_class(pred)
-        title = "\n".join([
-            f"{task} - gt: {gt_label}, pred: {pred_label}"
-            for gt_label, pred_label, task
-            in zip(gt_decoded_labels, pred_decoded_labels, tasks)
-        ])
+        title = "\n".join(
+            [f"{task} - gt: {gt_label}, pred: {pred_label}" for gt_label, pred_label, task in zip(gt_decoded_labels, pred_decoded_labels, tasks)]
+        )
 
         plt.subplot(n_grid, n_grid, idx + 1, title=title)
         plt.xticks([])
@@ -68,7 +66,7 @@ def grid_image(np_images, gts, preds, n=16, shuffle=False):
 
 
 def increment_path(path, exist_ok=False):
-    """ Automatically increment path, i.e. runs/exp --> runs/exp0, runs/exp1 etc.
+    """Automatically increment path, i.e. runs/exp --> runs/exp0, runs/exp1 etc.
 
     Args:
         path (str or pathlib.Path): f"{model_dir}/{args.name}".
@@ -79,7 +77,7 @@ def increment_path(path, exist_ok=False):
         return str(path)
     else:
         dirs = glob.glob(f"{path}*")
-        matches = [re.search(rf"%s(\d+)" % path.stem, d) for d in dirs]
+        matches = [re.search(r"%s(\d+)" % path.stem, d) for d in dirs]
         i = [int(m.groups()[0]) for m in matches if m]
         n = max(i) + 1 if i else 2
         return f"{path}{n}"
@@ -150,6 +148,7 @@ def train(data_dir, model_dir, args):
         lr=args.lr,
         weight_decay=5e-4
     )
+    scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
 
     # if use Multi-task loss
 
@@ -172,33 +171,36 @@ def train(data_dir, model_dir, args):
     trainer.train()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     # Data and model checkpoints directories
-    parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
-    parser.add_argument('--epochs', type=int, default=100, help='number of epochs to train (default: 1)')
-    parser.add_argument('--dataset', type=str, default='MyDataset', help='dataset augmentation type (default: MyDataset)')
-    parser.add_argument('--augmentation', type=str, default='BaseAugmentation', help='data augmentation type (default: BaseAugmentation)')
-    parser.add_argument("--resize", nargs="+", type=list, default=[128, 96], help='resize size for image when training')
-    parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
-    parser.add_argument('--valid_batch_size', type=int, default=1000, help='input batch size for validing (default: 1000)')
-    parser.add_argument('--model', type=str, default='MyModel', help='model type (default: BaseModel)')
-    parser.add_argument('--optimizer', type=str, default='SGD', help='optimizer type (default: SGD)')
-    parser.add_argument('--lr', type=float, default=1e-3, help='learning rate (default: 1e-3)')
-    parser.add_argument('--val_ratio', type=float, default=0.2, help='ratio for validaton (default: 0.2)')
-    parser.add_argument('--criterion', type=list, default=['cross_entropy'], help='criterion type (default: cross_entropy)')
-    parser.add_argument('--lr_decay_step', type=int, default=20, help='learning rate scheduler deacy step (default: 20)')
-    parser.add_argument('--log_interval', type=int, default=20, help='how many batches to wait before logging training status')
-    parser.add_argument('--name', default='exp', help='model save at {SM_MODEL_DIR}/{name}')
-    parser.add_argument('--early_stop', type=int, default=10, help='Early stop training when 10 epochs no improvement')
+    parser.add_argument("--config", type=str, default="./config.json", help="config file directory address")
+    args = parser.parse_args()
+    with open(args.config, "r") as f:
+        config = json.load(f)
+
+    parser.add_argument("--seed", type=int, default=config["seed"], help="random seed (default: 42)")
+    parser.add_argument("--epochs", type=int, default=config["epochs"], help="number of epochs to train (default: 1)")
+    parser.add_argument("--dataset", type=str, default=config["dataset"], help="dataset augmentation type (default: MyDataset)")
+    parser.add_argument("--augmentation", type=str, default=config["augmentation"], help="data augmentation type (default: BaseAugmentation)")
+    parser.add_argument("--resize", nargs="+", type=list, default=config["resize"], help="resize size for image when training")
+    parser.add_argument("--batch_size", type=int, default=config["batch_size"], help="input batch size for training (default: 64)")
+    parser.add_argument("--valid_batch_size", type=int, default=config["valid_batch_size"], help="input batch size for validing (default: 1000)")
+    parser.add_argument("--model", type=str, default=config["model"], help="model type (default: BaseModel)")
+    parser.add_argument("--optimizer", type=str, default=config["optimizer"], help="optimizer type (default: SGD)")
+    parser.add_argument("--lr", type=float, default=config["lr"], help="learning rate (default: 1e-3)")
+    parser.add_argument("--val_ratio", type=float, default=config["val_ratio"], help="ratio for validaton (default: 0.2)")
+    parser.add_argument("--criterion", type=list, default=config["criterion"], help="criterion type (default: cross_entropy)")
+    parser.add_argument("--lr_decay_step", type=int, default=config["lr_decay_step"], help="learning rate scheduler deacy step (default: 20)")
+    parser.add_argument("--log_interval", type=int, default=config["log_interval"], help="how many batches to wait before logging training status")
+    parser.add_argument("--name", default=config["name"], help="model save at {SM_MODEL_DIR}/{name}")
+    parser.add_argument('--early_stop', type=int, default=config["early_stop"], help='Early stop training when 10 epochs no improvement')
 
     # Container environment
-    parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_TRAIN', '/opt/ml/input/data/train/images'))
-    parser.add_argument('--model_dir', type=str, default=os.environ.get('SM_MODEL_DIR', './experiment'))
+    parser.add_argument("--data_dir", type=str, default=os.environ.get("SM_CHANNEL_TRAIN", "/opt/ml/input/data/train/images"))
+    parser.add_argument("--model_dir", type=str, default=os.environ.get("SM_MODEL_DIR", "./experiment"))
     parser.add_argument('--label_dir', type=str, default='/opt/ml/input/data/train/')
-
-
     args = parser.parse_args()
     print(args)
 
