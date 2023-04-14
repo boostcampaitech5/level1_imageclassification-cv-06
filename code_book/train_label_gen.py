@@ -1,14 +1,16 @@
 import os
-import pandas as pd
-import numpy as np
 
-'''
+import pandas as pd
+
+"""
 Overall codes from data_label_gen.py.
 csv will save [image_path, class, age_class, mask_class, gender_class]
 
 [Update] mis-labeled data modified 
     (20, 4418 ID mask state, 001498-1, 1720, 4432, 6359, 6360, 6361, 6362, 6363, 6364 ID gender)
-'''
+"""
+
+
 class cfg:
     data_dir = "/opt/ml/input/data/train"
     img_dir = f"{data_dir}/images"
@@ -39,7 +41,7 @@ def make_new_data(df):
     for _, data in df.iterrows():
         # 현재 폴더 순회하며 파일 반환
         for file_name in os.listdir(os.path.join(cfg.img_dir, data.path)):
-            if file_name.split('/')[-1].startswith('._'):
+            if file_name.split("/")[-1].startswith("._"):
                 continue
             else:
                 age_class = get_age_class(data.age)
@@ -48,15 +50,15 @@ def make_new_data(df):
                 value = get_age_value(data.age) + get_mask_value(file_name) + get_gender_value(data.gender)
 
                 if data.id in [20, 4418]:
-                    if file_name.split('/')[-1].startswith('incorrect_mask'):
+                    if file_name.split("/")[-1].startswith("incorrect_mask"):
                         mask_class = 2
-                    elif file_name.split('/')[-1].startswith('normal'):
+                    elif file_name.split("/")[-1].startswith("normal"):
                         mask_class = 1
-                if str(data.id) in ['001498-1', '1720', '4432', '6359', '6360', '6361', '6362', '6363', '6364']:
-                    if gender_class==0:
-                        gender_class=3
+                if str(data.id) in ["001498-1", "1720", "4432", "6359", "6360", "6361", "6362", "6363", "6364"]:
+                    if gender_class == 0:
+                        gender_class = 3
                     else:
-                        gender_class=0
+                        gender_class = 0
 
                 new_data.append([os.path.join(data.path, file_name), value, age_class, mask_class, gender_class])
     return new_data
@@ -67,7 +69,7 @@ df = pd.read_csv(cfg.df_path)
 
 # 새로운 DataFrame을 위한 새로운 list
 new_df = make_new_data(df)
-#print(new_df)
+# print(new_df)
 
 labeled_df = pd.DataFrame(
     new_df,

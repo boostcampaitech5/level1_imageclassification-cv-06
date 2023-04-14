@@ -1,25 +1,23 @@
 import os
-from enum import Enum
 from typing import Tuple
 
 import numpy as np
 import pandas as pd
+import torch
 from PIL import Image
 from torch.utils.data import Dataset, Subset, random_split
-from torchvision.transforms import Resize, ToTensor, Normalize, Compose
-
-
-def is_image_file(filename):
-    return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
+from torchvision.transforms import CenterCrop, ColorJitter, Compose, Normalize, Resize, ToTensor
 
 
 class BaseAugmentation:
     def __init__(self, resize, mean, std, **args):
-        self.transform = Compose([
-            Resize(resize, Image.BILINEAR),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-        ])
+        self.transform = Compose(
+            [
+                Resize(resize, Image.BILINEAR),
+                ToTensor(),
+                Normalize(mean=mean, std=std),
+            ]
+        )
 
     def __call__(self, image):
         return self.transform(image)
@@ -27,11 +25,11 @@ class BaseAugmentation:
 
 class AddGaussianNoise(object):
     """
-        transform 에 없는 기능들은 이런식으로 __init__, __call__, __repr__ 부분을
-        직접 구현하여 사용할 수 있습니다.
+    transform 에 없는 기능들은 이런식으로 __init__, __call__, __repr__ 부분을
+    직접 구현하여 사용할 수 있습니다.
     """
 
-    def __init__(self, mean=0., std=1.):
+    def __init__(self, mean=0.0, std=1.0):
         self.std = std
         self.mean = mean
 
@@ -39,19 +37,21 @@ class AddGaussianNoise(object):
         return tensor + torch.randn(tensor.size()) * self.std + self.mean
 
     def __repr__(self):
-        return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
+        return self.__class__.__name__ + "(mean={0}, std={1})".format(self.mean, self.std)
 
 
 class CustomAugmentation:
     def __init__(self, resize, mean, std, **args):
-        self.transform = Compose([
-            CenterCrop((320, 256)),
-            Resize(resize, Image.BILINEAR),
-            ColorJitter(0.1, 0.1, 0.1, 0.1),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-            AddGaussianNoise()
-        ])
+        self.transform = Compose(
+            [
+                CenterCrop((320, 256)),
+                Resize(resize, Image.BILINEAR),
+                ColorJitter(0.1, 0.1, 0.1, 0.1),
+                ToTensor(),
+                Normalize(mean=mean, std=std),
+                AddGaussianNoise(),
+            ]
+        )
 
     def __call__(self, image):
         return self.transform(image)
@@ -59,6 +59,7 @@ class CustomAugmentation:
 
 class MyDataset(Dataset):
     num_classes = 3 * 2 * 3
+
     def __init__(self, data_dir, label_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
         self.data_dir = data_dir
         self.mean = mean
@@ -79,10 +80,10 @@ class MyDataset(Dataset):
             for image_path in self.image_paths[:3000]:
                 image = np.array(Image.open(image_path)).astype(np.int32)
                 sums.append(image.mean(axis=(0, 1)))
-                squared.append((image ** 2).mean(axis=(0, 1)))
+                squared.append((image**2).mean(axis=(0, 1)))
 
             self.mean = np.mean(sums, axis=0) / 255
-            self.std = (np.mean(squared, axis=0) - self.mean ** 2) ** 0.5 / 255
+            self.std = (np.mean(squared, axis=0) - self.mean**2) ** 0.5 / 255
 
     def set_transform(self, transform):
         self.transform = transform
@@ -94,7 +95,7 @@ class MyDataset(Dataset):
         _class, age_class, mask_class, gender_class = self.labels.iloc[index][1:]
 
         image_transform = self.transform(image)
-        return image_transform, _class #[_class, age_class, mask_class, gender_class]
+        return image_transform, _class  # [_class, age_class, mask_class, gender_class]
 
     def __len__(self):
         return len(self.image_paths)

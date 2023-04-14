@@ -1,9 +1,9 @@
 import json
-import torch
-import pandas as pd
-from pathlib import Path
-from itertools import repeat
 from collections import OrderedDict
+from itertools import repeat
+from pathlib import Path
+
+import pandas as pd
 
 
 def ensure_dir(dirname):
@@ -11,25 +11,29 @@ def ensure_dir(dirname):
     if not dirname.is_dir():
         dirname.mkdir(parents=True, exist_ok=False)
 
+
 def read_json(fname):
     fname = Path(fname)
-    with fname.open('rt') as handle:
+    with fname.open("rt") as handle:
         return json.load(handle, object_hook=OrderedDict)
+
 
 def write_json(content, fname):
     fname = Path(fname)
-    with fname.open('wt') as handle:
+    with fname.open("wt") as handle:
         json.dump(content, handle, indent=4, sort_keys=False)
 
+
 def inf_loop(data_loader):
-    ''' wrapper function for endless data loader. '''
+    """wrapper function for endless data loader."""
     for loader in repeat(data_loader):
         yield from loader
+
 
 class MetricTracker:
     def __init__(self, *keys, writer=None):
         self.writer = writer
-        self._data = pd.DataFrame(index=keys, columns=['total', 'counts', 'average'])
+        self._data = pd.DataFrame(index=keys, columns=["total", "counts", "average"])
         self.reset()
 
     def reset(self):

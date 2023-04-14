@@ -14,9 +14,7 @@ class FocalLoss(nn.Module):
     def forward(self, input_tensor, target_tensor):
         log_prob = F.log_softmax(input_tensor, dim=-1)
         prob = torch.exp(log_prob)
-        return F.nll_loss(
-            ((1 - prob) ** self.gamma) * log_prob, target_tensor, weight=self.weight, reduction=self.reduction
-        )
+        return F.nll_loss(((1 - prob) ** self.gamma) * log_prob, target_tensor, weight=self.weight, reduction=self.reduction)
 
 
 class LabelSmoothingLoss(nn.Module):
@@ -50,7 +48,7 @@ class F1Loss(nn.Module):
         y_pred = F.softmax(y_pred, dim=1)
 
         tp = (y_true * y_pred).sum(dim=0).to(torch.float32)
-        tn = ((1 - y_true) * (1 - y_pred)).sum(dim=0).to(torch.float32)
+        ((1 - y_true) * (1 - y_pred)).sum(dim=0).to(torch.float32)
         fp = ((1 - y_true) * y_pred).sum(dim=0).to(torch.float32)
         fn = (y_true * (1 - y_pred)).sum(dim=0).to(torch.float32)
 
@@ -95,6 +93,6 @@ class Accuracy:
         with torch.no_grad():
             pred = torch.argmax(output, dim=-1)
             assert pred.shape[0] == len(target)
-            acc = (target == pred).sum().item() / len(target)* 100
-            
+            acc = (target == pred).sum().item() / len(target) * 100
+
             return acc

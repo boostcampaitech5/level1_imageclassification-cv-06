@@ -9,7 +9,7 @@
     ],
     "batch_size": 64,
     "valid_batch_size": 1000,
-    "model": "BaseModel",
+    "model": "MyModel",
     "optimizer": "SGD",
     "lr": 0.001,
     "val_ratio": 0.2,

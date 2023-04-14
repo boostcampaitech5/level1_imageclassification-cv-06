@@ -117,3 +117,4 @@ wandb/
 .DS_Store
 experiment/
 config.json
+output/
