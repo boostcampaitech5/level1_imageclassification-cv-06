@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "CV06"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <Your Email>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.8.5"
+torch = {url = "https://download.pytorch.org/whl/cu117/torch-1.13.0%2Bcu117-cp38-cp38-linux_x86_64.whl"}
+torchvision = {url = "https://download.pytorch.org/whl/cu117/torchvision-0.14.0%2Bcu117-cp38-cp38-linux_x86_64.whl"}
+torchaudio = {url = "https://download.pytorch.org/whl/cu117/torchaudio-0.13.0%2Bcu117-cp38-cp38-linux_x86_64.whl"}
+numpy = "^1.24.2"
+pyyaml = "^6.0"
+matplotlib = "^3.7.1"
+pandas = "^2.0.0"
+scikit-learn = "^1.2.2"
+timm = "^0.6.13"
+tqdm = "^4.65.0"
+opencv-python = "^4.7.0.72"
+ipykernel = "^6.22.0"
+albumentations = "^1.3.0"
+wandb = "^0.14.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
