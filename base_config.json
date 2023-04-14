@@ -18,5 +18,6 @@
     ],
     "lr_decay_step": 20,
     "log_interval": 20,
-    "name": "exp"
+    "name": "exp",
+    "early_stop": 10
 }
