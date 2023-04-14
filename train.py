@@ -83,7 +83,7 @@ def increment_path(path, exist_ok=False):
 
 
 def train(data_dir, model_dir, args):
-    wandb.init(project="CV06_MaskClassification", config=vars(args))
+    wandb.init(entity="cv06", project="CV06_MaskClassification", config=vars(args))
 
     seed_everything(args.seed)
     save_dir = increment_path(os.path.join(model_dir, args.name))
