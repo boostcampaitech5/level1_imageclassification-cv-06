@@ -83,7 +83,7 @@ def increment_path(path, exist_ok=False):
 
 
 def train(data_dir, model_dir, args):
-    wandb.init(project="mask_classification", config=vars(args))
+    wandb.init(project="CV06_MaskClassification", config=vars(args))
 
     seed_everything(args.seed)
     save_dir = increment_path(os.path.join(model_dir, args.name))
@@ -150,7 +150,9 @@ def train(data_dir, model_dir, args):
 
     # -- logging
     with open(os.path.join(save_dir, "config.json"), "w", encoding="utf-8") as f:
-        json.dump(vars(args), f, ensure_ascii=False, indent=4)
+        args_dict = vars(args)
+        args_dict["model_dir"] = save_dir
+        json.dump(args_dict, f, ensure_ascii=False, indent=4)
 
     # -- train
     trainer = Trainer(
