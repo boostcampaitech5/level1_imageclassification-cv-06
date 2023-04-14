@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
+from torch.nn import Parameter
 import torch.nn.functional as F
+import math
 
 
 # https://discuss.pytorch.org/t/is-this-a-correct-implementation-for-focal-loss-in-pytorch/43327/8
@@ -58,13 +60,46 @@ class F1Loss(nn.Module):
         f1 = 2 * (precision * recall) / (precision + recall + self.epsilon)
         f1 = f1.clamp(min=self.epsilon, max=1 - self.epsilon)
         return 1 - f1.mean()
+    
+
+class ArcFaceLoss(nn.Module):
+    def __init__(self, in_classes=18, out_classes=18, scale=64.0, margin=0.5):
+        super(ArcFaceLoss, self).__init__()
+        self.in_classes = in_classes
+        self.out_classes = out_classes
+        self.scale = scale
+        self.margin = margin
+        self.weight = Parameter(torch.Tensor(out_classes, in_classes))
+        nn.init.xavier_uniform_(self.weight)
+
+        self.cos_m = math.cos(margin)
+        self.sin_m = math.sin(margin)
+
+        self.th = math.cos(math.pi - margin)
+        self.mm = math.sin(math.pi - margin) * margin
+
+    def forward(self, pred, target):
+        # one_hot = torch.zeros(cosine.size(), device='cuda' if torch.cuda.is_available() else 'cpu')
+        cosine = F.linear(F.normalize(pred), F.normalize(self.weight))
+        sine = torch.sqrt(1.0 - torch.pow(cosine, 2))
+        phi = cosine * self.cos_m - sine * self.sin_m 
+
+        phi = torch.where((cosine - self.th) > 0, phi, cosine - self.mm)
+
+        one_hot = torch.zeros_like(cosine)
+        one_hot.scatter_(1, target.view(-1, 1), 1)
+        output = (one_hot * phi) + ((1.0 - one_hot) * cosine)
+        output = output * self.s
+
+        return output
 
 
 _criterion_entrypoints = {
     "cross_entropy": nn.CrossEntropyLoss,
     "focal": FocalLoss,
     "label_smoothing": LabelSmoothingLoss,
-    "f1": F1Loss,
+    "f1": F1Loss
+    # "arc_face": ArcFaceLoss
 }
 
 
