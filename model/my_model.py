@@ -18,3 +18,29 @@ class MyModel(BaseModel):
         x = self.my_resnet(x)
 
         return x
+
+
+class EfficientNetB3(BaseModel):
+    def __init__(self, num_classes=18):
+        super(MyModel, self).__init__()
+        self.my_efficientnetb3 = models.efficientnet_b4(pretrained=True)
+        self.my_efficientnetb3.classifier = nn.Linear(1536, num_classes)
+        print("권장 크기는 300 * 300 size 입니다.")
+
+    def forward(self, x):
+        x = self.my_efficientnetb3(x)
+
+        return x
+
+
+class EfficientNetB4(BaseModel):
+    def __init__(self, num_classes=18):
+        super(MyModel, self).__init__()
+        self.my_efficientnetb4 = models.efficientnet_b4(pretrained=True)
+        self.my_efficientnetb4.classifier = nn.Linear(1792, num_classes)
+        print("권장 크기는 380 * 380 size 입니다.")
+
+    def forward(self, x):
+        x = self.my_efficientnetb4(x)
+
+        return x
