@@ -6,6 +6,7 @@ from importlib import import_module
 
 import pandas as pd
 import torch
+from PIL import *
 from torchvision.transforms import *
 
 from datasets.base_dataset import MaskBaseDataset
@@ -41,7 +42,7 @@ def inference(data_dir, model_dir, args):
     info = pd.read_csv(info_path)
 
     img_paths = [os.path.join(img_root, img_id) for img_id in info.ImageID]
-    # InterpolationMode.BILINEAR
+    # Image.BILINEAR
     transform = Compose([])
     dataset = TestDataset(img_paths, args.resize, transform=transform)
     loader = torch.utils.data.DataLoader(
