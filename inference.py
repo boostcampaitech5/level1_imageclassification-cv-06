@@ -6,8 +6,10 @@ from importlib import import_module
 
 import pandas as pd
 import torch
+from torchvision.transforms import *
 
-from datasets.base_dataset import MaskBaseDataset, TestDataset
+from datasets.base_dataset import MaskBaseDataset
+from datasets.my_dataset import TestDataset
 
 
 def load_model(saved_model, num_classes, device):
@@ -39,7 +41,14 @@ def inference(data_dir, model_dir, args):
     info = pd.read_csv(info_path)
 
     img_paths = [os.path.join(img_root, img_id) for img_id in info.ImageID]
-    dataset = TestDataset(img_paths, args.resize)
+    transform = Compose(
+        [
+            Resize(size=[380, 380], interpolation="bilinear", max_size=None, antialias=None),
+            ToTensor(),
+            Normalize(mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)),
+        ]
+    )
+    dataset = TestDataset(img_paths, args.resize, args.mean, args.std, transform)
     loader = torch.utils.data.DataLoader(
         dataset,
         batch_size=args.batch_size,
