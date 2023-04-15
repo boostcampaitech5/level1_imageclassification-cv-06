@@ -6,8 +6,11 @@ from importlib import import_module
 
 import pandas as pd
 import torch
+from PIL import *
+from torchvision.transforms import *
 
-from datasets.base_dataset import MaskBaseDataset, TestDataset
+from datasets.base_dataset import MaskBaseDataset
+from datasets.my_dataset import TestDataset
 
 
 def load_model(saved_model, num_classes, device):
@@ -39,7 +42,9 @@ def inference(data_dir, model_dir, args):
     info = pd.read_csv(info_path)
 
     img_paths = [os.path.join(img_root, img_id) for img_id in info.ImageID]
-    dataset = TestDataset(img_paths, args.resize)
+    # Image.BILINEAR
+    transform = Compose([])
+    dataset = TestDataset(img_paths, args.resize, transform=transform)
     loader = torch.utils.data.DataLoader(
         dataset,
         batch_size=args.batch_size,
@@ -70,7 +75,7 @@ if __name__ == "__main__":
     # Data and model checkpoints directories
     parser.add_argument("--exp", type=str, default="./experiment/exp", help="exp directory address")
     args = parser.parse_args()
-    with open(os.path.join(args.config, "config.json"), "r") as f:
+    with open(os.path.join(args.exp, "config.json"), "r") as f:
         config = json.load(f)
 
     print(f"model dir: {config['model_dir']}")

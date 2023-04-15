@@ -1,4 +1,5 @@
 import argparse
+import copy
 import glob
 import json
 import multiprocessing
@@ -16,6 +17,7 @@ from torch.utils.data import DataLoader
 
 import wandb
 from datasets.base_dataset import MaskBaseDataset
+from datasets.my_dataset import TestAugmentation
 from losses.base_loss import Accuracy, F1Loss, create_criterion
 from trainer.trainer import Trainer
 from utils.util import ensure_dir
@@ -101,15 +103,19 @@ def train(data_dir, model_dir, args):
 
     # -- augmentation
     transform_module = getattr(import_module("datasets.my_dataset"), args.augmentation)  # default: BaseAugmentation
+
     transform = transform_module(
         resize=args.resize,
         mean=dataset.mean,
         std=dataset.std,
     )
-    dataset.set_transform(transform)
 
     # -- data_loader
     train_set, val_set = dataset.split_dataset()
+    train_set, val_set = train_set, copy.deepcopy(val_set)
+
+    train_set.dataset.set_transform(transform)
+    val_set.dataset.set_transform(TestAugmentation(args.resize, dataset.mean, dataset.std))
 
     train_loader = DataLoader(
         train_set,
@@ -142,19 +148,16 @@ def train(data_dir, model_dir, args):
     opt_module = getattr(import_module("torch.optim"), args.optimizer)  # default: SGD
     optimizer = opt_module(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=5e-4)
     scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
-
-    # if use Multi-task loss
-
-    scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
     metrics = [Accuracy(), F1Loss()]
 
     # -- logging
     with open(os.path.join(save_dir, "config.json"), "w", encoding="utf-8") as f:
         args_dict = vars(args)
         args_dict["model_dir"] = save_dir
+        args_dict["TestAugmentation"] = val_set.dataset.get_transform().__str__()
         json.dump(args_dict, f, ensure_ascii=False, indent=4)
 
-    # -- train
+    # --train
     trainer = Trainer(
         model,
         criterion,
