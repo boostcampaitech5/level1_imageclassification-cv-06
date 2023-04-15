@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from losses.base_loss import F1Loss, FocalLoss, LabelSmoothingLoss, ArcFaceLoss
+from losses.base_loss import F1Loss, FocalLoss, LabelSmoothingLoss, ArcFaceLoss, ClassBalancedLoss
 
 
 class MultiTaskLoss(nn.Module):
@@ -30,9 +30,13 @@ class MultiTaskLoss(nn.Module):
         init_arc_face_log_var = 0
 
         self.focal_log_var = nn.Parameter(torch.tensor(init_focal_log_var).float(), requires_grad=False)
-        self.label_smoothing_log_var = nn.Parameter(torch.tensor(init_label_smoothing_log_var).float(), requires_grad=True)
+        self.label_smoothing_log_var = nn.Parameter(
+            torch.tensor(init_label_smoothing_log_var).float(), requires_grad=True
+        )
         self.f1_log_var = nn.Parameter(torch.tensor(init_f1_log_var).float(), requires_grad=True)
-        self.class_balanced_log_var = nn.Parameter(torch.tensor(init_class_balanced_log_var).float(), requires_grad=True)
+        self.class_balanced_log_var = nn.Parameter(
+            torch.tensor(init_class_balanced_log_var).float(), requires_grad=True
+        )
         self.arc_face_log_var = nn.Parameter(torch.tensor(init_arc_face_log_var).float(), requires_grad=True)
 
         if "FocalLoss" in losses_on:
@@ -46,14 +50,12 @@ class MultiTaskLoss(nn.Module):
             self.f1_loss = F1Loss(
                 classes=18,
             )
-        """
+        if "ClassBalancedLoss" in losses_on:
+            self.class_balanced_log_var.requires_grad = True
+            self.class_balanced_loss = ClassBalancedLoss()
         if "ArcFaceLoss" in losses_on:
             self.arc_face_log_var.requires.grad = True
             self.label_smoothing_loss = ArcFaceLoss()
-        if 'ClassBalancedLoss' in losses_on:
-            self.class_balanced_log_var.requires_grad = True
-            self.class_balanced_loss = 
-        """
 
     def forward(self, outputs, labels, is_train=True):
         total_loss = 0.0
@@ -88,6 +90,6 @@ class MultiTaskLoss(nn.Module):
             arc_face_loss = self.arc_face_loss(outputs, labels)
             total_loss += arc_face_loss * torch.exp(-self.arc_face_log_var) + self.arc_face_log_var
             loss_dict[prefix + "ArcFaceLoss"] = arc_face_loss * torch.exp(-self.arc_face_log_var)
-            loss_dict["arc_face_log_var"] = self.arc_face_log_var.data 
+            loss_dict["arc_face_log_var"] = self.arc_face_log_var.data
 
         return total_loss, loss_dict

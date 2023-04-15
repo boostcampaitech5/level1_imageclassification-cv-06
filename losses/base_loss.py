@@ -16,7 +16,9 @@ class FocalLoss(nn.Module):
     def forward(self, input_tensor, target_tensor):
         log_prob = F.log_softmax(input_tensor, dim=-1)
         prob = torch.exp(log_prob)
-        return F.nll_loss(((1 - prob) ** self.gamma) * log_prob, target_tensor, weight=self.weight, reduction=self.reduction)
+        return F.nll_loss(
+            ((1 - prob) ** self.gamma) * log_prob, target_tensor, weight=self.weight, reduction=self.reduction
+        )
 
 
 class LabelSmoothingLoss(nn.Module):
@@ -60,7 +62,32 @@ class F1Loss(nn.Module):
         f1 = 2 * (precision * recall) / (precision + recall + self.epsilon)
         f1 = f1.clamp(min=self.epsilon, max=1 - self.epsilon)
         return 1 - f1.mean()
-    
+
+
+class ClassBalancedLoss(nn.Module):
+    def __init__(self, beta=0.95):  # beta = 0.95 or 0.99
+        super(ClassBalancedLoss, self).__init__()
+        self.beta = beta
+        self.cross_entropy = F.cross_entropy
+
+    def forward(self, input, target):
+        # Compute class frequencies
+        n_classes = input.shape[1]
+        class_counts = torch.zeros(n_classes)
+        for c in range(n_classes):
+            class_counts[c] = torch.sum(target == c)
+        class_freqs = class_counts / torch.sum(class_counts)
+
+        # Compute weights for each class
+        weights = 1 / (1 - self.beta)
+        weights *= 1 - torch.pow(self.beta, class_freqs)
+        weights /= torch.sum(weights)  # Normalize to 0 ~ 1
+        weights = weights.to(input.device)
+
+        # Compute with cross_entropy
+        loss = self.cross_entropy(input, target, weight=weights)
+        return loss
+
 
 class ArcFaceLoss(nn.Module):
     def __init__(self, in_classes=18, out_classes=18, scale=64.0, margin=0.5):
@@ -69,8 +96,10 @@ class ArcFaceLoss(nn.Module):
         self.out_classes = out_classes
         self.scale = scale
         self.margin = margin
-        self.weight = Parameter(torch.Tensor(out_classes, in_classes))
-        nn.init.xavier_uniform_(self.weight)
+
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.weights = nn.Parameter(torch.Tensor(out_classes, in_classes).to(device))
+        nn.init.xavier_uniform_(self.weights)
 
         self.cos_m = math.cos(margin)
         self.sin_m = math.sin(margin)
@@ -79,27 +108,29 @@ class ArcFaceLoss(nn.Module):
         self.mm = math.sin(math.pi - margin) * margin
 
     def forward(self, pred, target):
-        # one_hot = torch.zeros(cosine.size(), device='cuda' if torch.cuda.is_available() else 'cpu')
-        cosine = F.linear(F.normalize(pred), F.normalize(self.weight))
+        cosine = F.linear(F.normalize(pred), F.normalize(self.weights))
         sine = torch.sqrt(1.0 - torch.pow(cosine, 2))
-        phi = cosine * self.cos_m - sine * self.sin_m 
+        phi = cosine * self.cos_m - sine * self.sin_m
 
         phi = torch.where((cosine - self.th) > 0, phi, cosine - self.mm)
 
-        one_hot = torch.zeros_like(cosine)
+        one_hot = torch.zeros(cosine.size(), device="cuda" if torch.cuda.is_available() else "cpu")
+        # one_hot = torch.zeros_like(cosine)
         one_hot.scatter_(1, target.view(-1, 1), 1)
         output = (one_hot * phi) + ((1.0 - one_hot) * cosine)
-        output = output * self.s
-
-        return output
+        output = output * self.scale
+        output = F.normalize(output)
+        loss = F.cross_entropy(output, target)
+        return loss
 
 
 _criterion_entrypoints = {
     "cross_entropy": nn.CrossEntropyLoss,
     "focal": FocalLoss,
     "label_smoothing": LabelSmoothingLoss,
-    "f1": F1Loss
-    # "arc_face": ArcFaceLoss
+    "f1": F1Loss,
+    "class_balanced": ClassBalancedLoss,
+    "arc_face": ArcFaceLoss,
 }
 
 
