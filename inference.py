@@ -41,14 +41,9 @@ def inference(data_dir, model_dir, args):
     info = pd.read_csv(info_path)
 
     img_paths = [os.path.join(img_root, img_id) for img_id in info.ImageID]
-    transform = Compose(
-        [
-            Resize(size=[380, 380], interpolation="bilinear", max_size=None, antialias=None),
-            ToTensor(),
-            Normalize(mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)),
-        ]
-    )
-    dataset = TestDataset(img_paths, args.resize, args.mean, args.std, transform)
+    # InterpolationMode.BILINEAR
+    transform = Compose([])
+    dataset = TestDataset(img_paths, args.resize, transform=transform)
     loader = torch.utils.data.DataLoader(
         dataset,
         batch_size=args.batch_size,
@@ -79,7 +74,7 @@ if __name__ == "__main__":
     # Data and model checkpoints directories
     parser.add_argument("--exp", type=str, default="./experiment/exp", help="exp directory address")
     args = parser.parse_args()
-    with open(os.path.join(args.config, "config.json"), "r") as f:
+    with open(os.path.join(args.exp, "config.json"), "r") as f:
         config = json.load(f)
 
     print(f"model dir: {config['model_dir']}")
