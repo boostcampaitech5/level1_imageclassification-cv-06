@@ -27,5 +27,7 @@ for img in img_list:
         output = tfm(input)
 
     ## Save i/o images
+    if not os.path.exists("./example"):
+        os.makedirs("./example")
     input.save(f"./example/{img}")
     output.save(f"./example/CustomTransform_{img}")
