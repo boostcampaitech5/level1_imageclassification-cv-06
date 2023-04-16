@@ -16,9 +16,7 @@ class FocalLoss(nn.Module):
     def forward(self, input_tensor, target_tensor):
         log_prob = F.log_softmax(input_tensor, dim=-1)
         prob = torch.exp(log_prob)
-        return F.nll_loss(
-            ((1 - prob) ** self.gamma) * log_prob, target_tensor, weight=self.weight, reduction=self.reduction
-        )
+        return F.nll_loss(((1 - prob) ** self.gamma) * log_prob, target_tensor, weight=self.weight, reduction=self.reduction)
 
 
 class LabelSmoothingLoss(nn.Module):
@@ -119,7 +117,6 @@ class ArcFaceLoss(nn.Module):
         one_hot.scatter_(1, target.view(-1, 1), 1)
         output = (one_hot * phi) + ((1.0 - one_hot) * cosine)
         output = output * self.scale
-        output = F.normalize(output)
         loss = F.cross_entropy(output, target)
         return loss
 
