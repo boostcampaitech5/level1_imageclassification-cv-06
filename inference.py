@@ -6,7 +6,7 @@ from importlib import import_module
 
 import pandas as pd
 import torch
-from PIL import *
+from PIL import Image
 from torchvision.transforms import *
 
 from datasets.base_dataset import MaskBaseDataset
@@ -43,7 +43,13 @@ def inference(data_dir, model_dir, args):
 
     img_paths = [os.path.join(img_root, img_id) for img_id in info.ImageID]
     # Image.BILINEAR
-    transform = Compose([])
+    transform = Compose(
+        [
+            Resize(size=[300, 300], interpolation=Image.BILINEAR, max_size=None, antialias=None),
+            ToTensor(),
+            Normalize(mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)),
+        ]
+    )
     dataset = TestDataset(img_paths, args.resize, transform=transform)
     loader = torch.utils.data.DataLoader(
         dataset,

@@ -45,3 +45,39 @@ class EfficientNetB4(BaseModel):
         x = self.my_efficientnetb4(x)
 
         return x
+
+
+class SwinTransformerT(BaseModel):
+    def __init__(self, num_classes=18) -> None:
+        super().__init__()
+        self.swin_t = models.swin_t(weights=models.Swin_T_Weights.IMAGENET1K_V1)
+        self.swin_t.head = nn.Linear(self.swin_t.head.in_features, num_classes)
+        print("Swin-T")
+
+    def forward(self, x):
+        x = self.swin_t(x)
+        return x
+
+
+class SwinTransformerS(BaseModel):
+    def __init__(self, num_classes=18) -> None:
+        super().__init__()
+        self.swin_s = models.swin_s(models.Swin_S_Weights.IMAGENET1K_V1)
+        self.swin_s.head = nn.Linear(self.swin_s.head.in_features, num_classes)
+        print("Swin-S")
+
+    def forward(self, x):
+        x = self.swin_s(x)
+        return x
+
+
+class SwinTransformerB(BaseModel):
+    def __init__(self, num_classes=18) -> None:
+        super().__init__()
+        self.swin_b = models.swin_b(models.Swin_B_Weights.IMAGENET1K_V1)
+        self.swin_b.head = nn.Linear(self.swin_b.head.in_features, num_classes)
+        print("Swin-B")
+
+    def forward(self, x):
+        x = self.swin_b(x)
+        return x
