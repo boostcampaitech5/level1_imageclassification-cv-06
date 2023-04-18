@@ -24,7 +24,7 @@ class MyModel(BaseModel):
 
 class ResNet50(BaseModel):
     def __init__(self, num_classes=18):
-        super(MyModel, self).__init__()
+        super(BaseModel, self).__init__()
         self.my_resnet = models.resnet50(pretrained=True)
         self.my_resnet.fc = nn.Linear(2048, num_classes)
 
@@ -36,7 +36,7 @@ class ResNet50(BaseModel):
 
 class ResNet101(BaseModel):
     def __init__(self, num_classes=18):
-        super(MyModel, self).__init__()
+        super(BaseModel, self).__init__()
         self.my_resnet = models.resnet101(pretrained=True)
         self.my_resnet.fc = nn.Linear(2048, num_classes)
 
@@ -48,7 +48,7 @@ class ResNet101(BaseModel):
 
 class ResNet152(BaseModel):
     def __init__(self, num_classes=18):
-        super(MyModel, self).__init__()
+        super(BaseModel, self).__init__()
         self.my_resnet = models.resnet152(pretrained=True)
         self.my_resnet.fc = nn.Linear(2048, num_classes)
 
