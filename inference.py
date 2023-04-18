@@ -6,8 +6,7 @@ from importlib import import_module
 
 import pandas as pd
 import torch
-from PIL import Image
-from torchvision.transforms import *
+from torchvision.transforms import CenterCrop, Normalize, ToTensor
 
 from datasets.base_dataset import MaskBaseDataset
 from datasets.my_dataset import TestDataset
@@ -37,7 +36,7 @@ def inference(data_dir, model_dir, args):
     model = load_model(model_dir, num_classes, device).to(device)
     model.eval()
 
-    img_root = os.path.join(data_dir, "images")
+    img_root = os.path.join(data_dir, "bg_sub")
     info_path = os.path.join(data_dir, "info.csv")
     info = pd.read_csv(info_path)
 
@@ -45,9 +44,10 @@ def inference(data_dir, model_dir, args):
     # Image.BILINEAR
     transform = Compose(
         [
-            Resize(size=[300, 300], interpolation=Image.BILINEAR, max_size=None, antialias=None),
+            CenterCrop((360, 360)),
+            # Resize(resize, Image.BILINEAR),
             ToTensor(),
-            Normalize(mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)),
+            Normalize(mean=mean, std=std),
         ]
     )
     dataset = TestDataset(img_paths, args.resize, transform=transform)
@@ -86,8 +86,10 @@ if __name__ == "__main__":
 
     print(f"model dir: {config['model_dir']}")
 
-    parser.add_argument("--batch_size", type=int, default=1000, help="input batch size for validing (default: 1000)")
-    parser.add_argument("--resize", type=tuple, default=config["resize"], help="resize size for image when you trained (default: (96, 128))")
+    parser.add_argument("--batch_size", type=int, default=256, help="input batch size for validing (default: 1000)")
+    parser.add_argument(
+        "--resize", type=tuple, default=config["resize"], help="resize size for image when you trained (default: (96, 128))"
+    )
     parser.add_argument("--model", type=str, default=config["model"], help="model type (default: BaseModel)")
 
     # Container environment
