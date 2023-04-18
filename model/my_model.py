@@ -58,6 +58,30 @@ class ResNet152(BaseModel):
         return x
 
 
+class ResNext50(BaseModel):
+    def __init__(self, num_classes=18):
+        super(BaseModel, self).__init__()
+        self.my_resnet = models.resnext50_32x4d(pretrained=True)
+        self.my_resnet.fc = nn.Linear(2048, num_classes)
+
+    def forward(self, x):
+        x = self.my_resnet(x)
+
+        return x
+
+
+class ResNext101(BaseModel):
+    def __init__(self, num_classes=18):
+        super(BaseModel, self).__init__()
+        self.my_resnet = models.resnext101_32x8d(pretrained=True)
+        self.my_resnet.fc = nn.Linear(2048, num_classes)
+
+    def forward(self, x):
+        x = self.my_resnet(x)
+
+        return x
+
+
 class EfficientNetB3(BaseModel):
     def __init__(self, num_classes=18):
         super(BaseModel, self).__init__()
