@@ -6,14 +6,15 @@ import pandas as pd
 import torch
 from PIL import Image
 from torch.utils.data import Dataset, Subset, random_split
-from torchvision.transforms import CenterCrop, ColorJitter, Compose, Normalize, Resize, ToTensor
+from torchvision.transforms import CenterCrop, ColorJitter, Compose, Normalize, RandomHorizontalFlip, RandomRotation, ToTensor
 
 
 class TestAugmentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = Compose(
             [
-                Resize(resize, Image.BILINEAR),
+                CenterCrop((360, 360)),
+                # Resize(resize, Image.BILINEAR),
                 ToTensor(),
                 Normalize(mean=mean, std=std),
             ]
@@ -50,12 +51,13 @@ class CustomAugmentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = Compose(
             [
-                CenterCrop((320, 256)),
-                Resize(resize, Image.BILINEAR),
+                RandomHorizontalFlip(),
+                RandomRotation(15),
+                CenterCrop((360, 360)),
+                # Resize(resize, Image.BILINEAR),
                 ColorJitter(0.1, 0.1, 0.1, 0.1),
                 ToTensor(),
                 Normalize(mean=mean, std=std),
-                AddGaussianNoise(),
             ]
         )
 
@@ -105,7 +107,7 @@ class MyDataset(Dataset):
 
         image_transform = self.transform(image)
 
-        return image_transform, labels["class"]  # [_class, age_class, mask_class, gender_class]
+        return image_transform, labels["re_labeled_class1"]  # [_class, age_class, mask_class, gender_class]
 
     def __len__(self):
         return len(self.image_paths)
