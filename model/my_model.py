@@ -21,6 +21,54 @@ class MyModel(BaseModel):
         return x
 
 
+class ResNet50(BaseModel):
+    """
+    Implement this module with your own idea
+    """
+
+    def __init__(self, num_classes=18):
+        super(MyModel, self).__init__()
+        self.my_resnet = models.resnet50(pretrained=True)
+        self.my_resnet.fc = nn.Linear(2048, num_classes)
+
+    def forward(self, x):
+        x = self.my_resnet(x)
+
+        return x
+
+
+class ResNet101(BaseModel):
+    """
+    Implement this module with your own idea
+    """
+
+    def __init__(self, num_classes=18):
+        super(MyModel, self).__init__()
+        self.my_resnet = models.resnet101(pretrained=True)
+        self.my_resnet.fc = nn.Linear(2048, num_classes)
+
+    def forward(self, x):
+        x = self.my_resnet(x)
+
+        return x
+
+
+class ResNet152(BaseModel):
+    """
+    Implement this module with your own idea
+    """
+
+    def __init__(self, num_classes=18):
+        super(MyModel, self).__init__()
+        self.my_resnet = models.resnet152(pretrained=True)
+        self.my_resnet.fc = nn.Linear(2048, num_classes)
+
+    def forward(self, x):
+        x = self.my_resnet(x)
+
+        return x
+
+
 class EfficientNetB3(BaseModel):
     def __init__(self, num_classes=18):
         super(BaseModel, self).__init__()
