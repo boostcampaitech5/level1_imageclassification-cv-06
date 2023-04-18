@@ -89,7 +89,7 @@ def train(data_dir, model_dir, args):
 
     seed_everything(args.seed)
     save_dir = increment_path(os.path.join(model_dir, args.name))
-    label_dir = os.path.join(args.label_dir, "train_path_label.csv")
+    label_dir = os.path.join(args.label_dir, "re_labeled_data.csv")
     ensure_dir(save_dir)
 
     # -- settings
