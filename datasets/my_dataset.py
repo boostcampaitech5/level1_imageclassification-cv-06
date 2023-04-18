@@ -101,7 +101,7 @@ class MyDataset(Dataset):
         assert self.transform is not None, ".set_tranform 메소드를 이용하여 transform 을 주입해주세요"
 
         image = Image.open(os.path.join(self.data_dir, self.image_paths[index]))
-        _class, age_class, mask_class, gender_class = self.labels.iloc[index][1:]
+        _class, _, _, _, _, _, _, _, re_class1, re_class2, re_class3 = self.labels.iloc[index][1:]
 
         image_transform = self.transform(image)
         return image_transform, _class  # [_class, age_class, mask_class, gender_class]
