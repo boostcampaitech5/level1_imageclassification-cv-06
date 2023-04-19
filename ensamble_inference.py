@@ -71,10 +71,12 @@ def inference(model_dir, args, img_paths, num):
         for idx, images in enumerate(loader):
             images = images.to(device)
             pred = model(images)
+            soft_max = torch.nn.Softmax(dim=0)
+            pred_out = soft_max(pred)
             if idx == 0:
-                pred_soft = pred.cpu().numpy()
+                pred_soft = pred_out.cpu().numpy()
             else:
-                pred_soft = np.concatenate((pred_soft, pred.cpu().numpy()), axis=0)
+                pred_soft = np.concatenate((pred_soft, pred_out.cpu().numpy()), axis=0)
             if idx % 10 == 0:
                 print("%d" % (idx * args.batch_size))
 
