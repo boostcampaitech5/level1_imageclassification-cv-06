@@ -2,6 +2,8 @@ import time
 
 import torch
 import numpy as np
+from torch.cuda.amp import GradScaler, autocast
+
 import wandb
 from trainer.base_trainer import BaseTrainer
 from utils.util import MetricTracker, inf_loop
@@ -35,6 +37,7 @@ class Trainer(BaseTrainer):
         self.train_metrics = MetricTracker("loss", *[c.__class__.__name__ for c in self.criterion], *["Accuracy", "F1Score"])
         self.valid_metrics = MetricTracker("loss", *["Accuracy", "F1Score"])
         # print(self.train_metrics._data.index) #['loss', 'CrossEntropyLoss', 'Accuracy', 'F1Score']
+        self.scaler = GradScaler()
 
     def _cutmix(self, images, target, ratio):
         batch_size = images.shape[0]
@@ -67,7 +70,7 @@ class Trainer(BaseTrainer):
             total_loss = 0
 
             self.optimizer.zero_grad()
-
+            """
             ratios = np.random.rand(1)
             ratio = ratios[0]
             if 0.4 < ratio < 0.6:
@@ -86,6 +89,17 @@ class Trainer(BaseTrainer):
 
             total_loss.backward()
             self.optimizer.step()
+            """
+            with autocast():
+                output = self.model(data)
+                for loss_fn in self.criterion:  # [loss_fn1, loss_fn2, ...]
+                    loss = loss_fn(output, target)
+                    self.train_metrics.update(loss_fn.__class__.__name__, loss.item())  # metric_fn마다 값 update
+                    total_loss += loss
+
+            self.scaler.scale(total_loss).backward()
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
 
             #  update loss value
             self.train_metrics.update("loss", total_loss.item())

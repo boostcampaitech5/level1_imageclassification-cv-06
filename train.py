@@ -12,7 +12,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from torch.optim.lr_scheduler import StepLR
+
+# from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 
 import wandb
@@ -20,6 +21,7 @@ from datasets.base_dataset import MaskBaseDataset
 from datasets.my_dataset import TestAugmentation
 from losses.base_loss import Accuracy, F1Loss, create_criterion
 from trainer.trainer import Trainer
+from utils.cosine_annealing_with_warmup import CosineAnnealingWarmupRestarts
 from utils.util import ensure_dir
 
 
@@ -54,10 +56,7 @@ def grid_image(np_images, gts, preds, n=16, shuffle=False):
         gt_decoded_labels = MaskBaseDataset.decode_multi_class(gt)
         pred_decoded_labels = MaskBaseDataset.decode_multi_class(pred)
         title = "\n".join(
-            [
-                f"{task} - gt: {gt_label}, pred: {pred_label}"
-                for gt_label, pred_label, task in zip(gt_decoded_labels, pred_decoded_labels, tasks)
-            ]
+            [f"{task} - gt: {gt_label}, pred: {pred_label}" for gt_label, pred_label, task in zip(gt_decoded_labels, pred_decoded_labels, tasks)]
         )
 
         plt.subplot(n_grid, n_grid, idx + 1, title=title)
@@ -149,8 +148,9 @@ def train(data_dir, model_dir, args):
         criterion.append(create_criterion(i))  # default: [cross_entropy]
 
     opt_module = getattr(import_module("torch.optim"), args.optimizer)  # default: SGD
-    optimizer = opt_module(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=5e-4)
-    scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
+    optimizer = opt_module(filter(lambda p: p.requires_grad, model.parameters()), lr=0, weight_decay=5e-4)
+    scheduler = CosineAnnealingWarmupRestarts(optimizer, 20, 1, 0.01, 0.00001, 5, 0.5)
+    # scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
     metrics = [Accuracy(), F1Loss()]
 
     # -- logging
@@ -189,25 +189,17 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=config["seed"], help="random seed (default: 42)")
     parser.add_argument("--epochs", type=int, default=config["epochs"], help="number of epochs to train (default: 1)")
     parser.add_argument("--dataset", type=str, default=config["dataset"], help="dataset augmentation type (default: MyDataset)")
-    parser.add_argument(
-        "--augmentation", type=str, default=config["augmentation"], help="data augmentation type (default: BaseAugmentation)"
-    )
+    parser.add_argument("--augmentation", type=str, default=config["augmentation"], help="data augmentation type (default: BaseAugmentation)")
     parser.add_argument("--resize", nargs="+", type=list, default=config["resize"], help="resize size for image when training")
     parser.add_argument("--batch_size", type=int, default=config["batch_size"], help="input batch size for training (default: 64)")
-    parser.add_argument(
-        "--valid_batch_size", type=int, default=config["valid_batch_size"], help="input batch size for validing (default: 1000)"
-    )
+    parser.add_argument("--valid_batch_size", type=int, default=config["valid_batch_size"], help="input batch size for validing (default: 1000)")
     parser.add_argument("--model", type=str, default=config["model"], help="model type (default: BaseModel)")
     parser.add_argument("--optimizer", type=str, default=config["optimizer"], help="optimizer type (default: SGD)")
     parser.add_argument("--lr", type=float, default=config["lr"], help="learning rate (default: 1e-3)")
     parser.add_argument("--val_ratio", type=float, default=config["val_ratio"], help="ratio for validaton (default: 0.2)")
     parser.add_argument("--criterion", type=list, default=config["criterion"], help="criterion type (default: cross_entropy)")
-    parser.add_argument(
-        "--lr_decay_step", type=int, default=config["lr_decay_step"], help="learning rate scheduler deacy step (default: 20)"
-    )
-    parser.add_argument(
-        "--log_interval", type=int, default=config["log_interval"], help="how many batches to wait before logging training status"
-    )
+    parser.add_argument("--lr_decay_step", type=int, default=config["lr_decay_step"], help="learning rate scheduler deacy step (default: 20)")
+    parser.add_argument("--log_interval", type=int, default=config["log_interval"], help="how many batches to wait before logging training status")
     parser.add_argument("--name", default=config["name"], help="model save at {SM_MODEL_DIR}/{name}")
     parser.add_argument("--early_stop", type=int, default=config["early_stop"], help="Early stop training when 10 epochs no improvement")
 
