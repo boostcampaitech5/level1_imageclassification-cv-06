@@ -70,30 +70,22 @@ class Trainer(BaseTrainer):
             total_loss = 0
 
             self.optimizer.zero_grad()
-            """
+
+            # cutmix part
             ratios = np.random.rand(1)
             ratio = ratios[0]
-            if 0.4 < ratio < 0.6:
-                data_new, target_new = self._cutmix(data, target, ratio)
-                output = self.model(data_new)
-            else:
-                output = self.model(data)
 
-            for loss_fn in self.criterion:  # [loss_fn1, loss_fn2, ...]
-                if 0.4 < ratio < 0.6:
-                    loss = loss_fn(output, target_new) * ratio + loss_fn(output, target) * (1 - ratio)
-                else:
-                    loss = loss_fn(output, target)
-                self.train_metrics.update(loss_fn.__class__.__name__, loss.item())  # metric_fn마다 값 update
-                total_loss += loss
-
-            total_loss.backward()
-            self.optimizer.step()
-            """
             with autocast():
-                output = self.model(data)
+                if 0.35 < ratio < 0.65:
+                    data_new, target_new = self._cutmix(data, target, ratio)
+                    output = self.model(data_new)
+                else:
+                    output = self.model(data)
                 for loss_fn in self.criterion:  # [loss_fn1, loss_fn2, ...]
-                    loss = loss_fn(output, target)
+                    if 0.35 < ratio < 0.65:
+                        loss = loss_fn(output, target_new) * ratio + loss_fn(output, target) * (1 - ratio)
+                    else:
+                        loss = loss_fn(output, target)
                     self.train_metrics.update(loss_fn.__class__.__name__, loss.item())  # metric_fn마다 값 update
                     total_loss += loss
 
