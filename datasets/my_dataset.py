@@ -52,7 +52,7 @@ class CustomAugmentation:
         self.transform = Compose(
             [
                 RandomHorizontalFlip(),
-                RandomRotation(15),
+                RandomRotation((-15, 15)),
                 CenterCrop((360, 360)),
                 # Resize(resize, Image.BILINEAR),
                 ColorJitter(0.1, 0.1, 0.1, 0.1),

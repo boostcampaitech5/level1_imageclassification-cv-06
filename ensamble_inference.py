@@ -43,7 +43,7 @@ def inference(model_dir, args, img_paths, num):
         [
             RandomHorizontalFlip(),
             RandomRotation((-15, 15)),
-            CenterCrop((470, 380)),
+            CenterCrop((430, 380)),
             ColorJitter(0.1, 0.1, 0.1, 0.1),
             ToTensor(),
             Normalize(mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)),
@@ -59,7 +59,7 @@ def inference(model_dir, args, img_paths, num):
         drop_last=False,
     )
 
-    TTA = 3
+    TTA = 5
     print("Calculating inference results..")
     preds = np.zeros((len(img_paths), num_classes, TTA))
     with torch.no_grad():

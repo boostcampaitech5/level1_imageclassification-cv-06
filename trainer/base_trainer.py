@@ -38,7 +38,7 @@ class BaseTrainer:
         Full training logic
         """
         patient = 0
-        best_val_acc = 0
+        best_val_f1 = 0
         best_val_loss = np.inf
         print("Training Start")
         for epoch in range(1, self.epochs + 1):
@@ -53,10 +53,10 @@ class BaseTrainer:
                 print(f"{str(key):}: {value:.3f}")
 
             # evaluate model performance according to configured metric, save best checkpoint as model_best
-            if log["val_Accuracy"] > best_val_acc:
-                print(f"New best model for val accuracy : {log['val_Accuracy']:.2f}%! saving the best model..")
+            if log["F1Score"] > best_val_f1:
+                print(f"New best model for val F1 score : {log['F1Score']:.2f}%! saving the best model..")
                 torch.save(self.model.module.state_dict(), f"{self.save_dir}/best.pth")
-                best_val_acc = log["val_Accuracy"]
+                best_val_f1 = log["F1Score"]
                 best_val_loss = log["val_loss"]
                 patient = 0
             else:
@@ -64,14 +64,14 @@ class BaseTrainer:
 
             torch.save(self.model.module.state_dict(), f"{self.save_dir}/last.pth")
             print(
-                f"[Val] acc : {log['val_Accuracy']:.2f}%, loss: {log['val_loss']:.2f} || best acc : {best_val_acc:.2f}%, best loss: {best_val_loss:.2f} || patient: {patient}\n"
+                f"[Val] acc : {log['val_Accuracy']:.2f}%, loss: {log['val_loss']:.2f} || best acc : {best_val_f1:.2f}%, best loss: {best_val_loss:.2f} || patient: {patient}\n"
             )
 
             if self.early_stop < patient:
                 print(f"Early stopping is triggerd at epoch {epoch}")
                 print("Best performance:")
                 print(
-                    f"[Val] acc : {log['val_Accuracy']:.2f}%, loss: {log['val_loss']:.4f} || best acc : {best_val_acc:.2f}%, best loss: {best_val_loss:.4f}"
+                    f"[Val] acc : {log['val_Accuracy']:.2f}%, loss: {log['val_loss']:.4f} || best acc : {best_val_f1:.2f}%, best loss: {best_val_loss:.4f}"
                 )
                 break
 
