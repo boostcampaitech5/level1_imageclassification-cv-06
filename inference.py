@@ -6,7 +6,7 @@ from importlib import import_module
 
 import pandas as pd
 import torch
-from torchvision.transforms import CenterCrop, Normalize, ToTensor
+from torchvision.transforms import CenterCrop, Compose, Normalize, ToTensor
 
 from datasets.base_dataset import MaskBaseDataset
 from datasets.my_dataset import TestDataset
@@ -47,7 +47,7 @@ def inference(data_dir, model_dir, args):
             CenterCrop((360, 360)),
             # Resize(resize, Image.BILINEAR),
             ToTensor(),
-            Normalize(mean=mean, std=std),
+            Normalize(mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)),
         ]
     )
     dataset = TestDataset(img_paths, args.resize, transform=transform)
