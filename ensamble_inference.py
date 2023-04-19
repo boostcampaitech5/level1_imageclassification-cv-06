@@ -2,8 +2,9 @@ import argparse
 import json
 import multiprocessing
 import os
-from importlib import import_module
 import warnings
+from importlib import import_module
+
 import numpy as np
 import pandas as pd
 import torch
@@ -65,23 +66,22 @@ def inference(model_dir, args, img_paths, num):
         drop_last=False,
     )
 
+    TTA = 5
     print("Calculating inference results..")
-    pred_soft = None
+    preds = np.zeros((len(img_paths), num_classes, TTA))
     with torch.no_grad():
-        for idx, images in enumerate(loader):
-            images = images.to(device)
-            pred = model(images)
-            soft_max = torch.nn.Softmax(dim=0)
-            pred_out = soft_max(pred)
-            if idx == 0:
-                pred_soft = pred_out.cpu().numpy()
-            else:
-                pred_soft = np.concatenate((pred_soft, pred_out.cpu().numpy()), axis=0)
-            if idx % 10 == 0:
-                print("%d" % (idx * args.batch_size))
+        for tta_idx in range(TTA):
+            pred_idx = 0
+            for images in loader:
+                images = images.to(device)
+                pred = model(images)
+                preds[pred_idx : pred_idx + len(images), :, tta_idx] = pred.cpu().numpy()
+                pred_idx += len(images)
+
+    mean_preds = preds.mean(axis=2)
 
     print("Inference Done! %d" % (num + 1))
-    return pred_soft
+    return mean_preds
 
 
 def voting(soft_results, info):
