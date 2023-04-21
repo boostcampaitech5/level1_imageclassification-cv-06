@@ -1,6 +1,8 @@
 import time
 
 import torch
+import numpy as np
+from torch.cuda.amp import GradScaler, autocast
 
 import wandb
 from trainer.base_trainer import BaseTrainer
@@ -35,6 +37,24 @@ class Trainer(BaseTrainer):
         self.train_metrics = MetricTracker("loss", *[c.__class__.__name__ for c in self.criterion], *["Accuracy", "F1Score"])
         self.valid_metrics = MetricTracker("loss", *["Accuracy", "F1Score"])
         # print(self.train_metrics._data.index) #['loss', 'CrossEntropyLoss', 'Accuracy', 'F1Score']
+        self.scaler = GradScaler()
+
+    def _cutmix(self, images, target, ratio):
+        batch_size = images.shape[0]
+        width = images.shape[3]
+
+        index = np.random.permutation(batch_size)
+
+        # 무작위로 선택한 이미지를 가져옵니다.
+        mixed_images = images[index]
+        mixed_labels = target[index]
+
+        # CutMix를 수행할 너비를 계산합니다.
+        cut_width = int(width * ratio)
+
+        images[:, :, :, :cut_width] = mixed_images[:, :, :, :cut_width]
+
+        return images, mixed_labels
 
     def _train_epoch(self, epoch):
         """
@@ -50,14 +70,36 @@ class Trainer(BaseTrainer):
             total_loss = 0
 
             self.optimizer.zero_grad()
-            output = self.model(data)
+            """
+            ratios = np.random.rand(1)
+            ratio = ratios[0]
+            if 0.4 < ratio < 0.6:
+                data_new, target_new = self._cutmix(data, target, ratio)
+                output = self.model(data_new)
+            else:
+                output = self.model(data)
+
             for loss_fn in self.criterion:  # [loss_fn1, loss_fn2, ...]
-                loss = loss_fn(output, target)
+                if 0.4 < ratio < 0.6:
+                    loss = loss_fn(output, target_new) * ratio + loss_fn(output, target) * (1 - ratio)
+                else:
+                    loss = loss_fn(output, target)
                 self.train_metrics.update(loss_fn.__class__.__name__, loss.item())  # metric_fn마다 값 update
                 total_loss += loss
 
             total_loss.backward()
             self.optimizer.step()
+            """
+            with autocast():
+                output = self.model(data)
+                for loss_fn in self.criterion:  # [loss_fn1, loss_fn2, ...]
+                    loss = loss_fn(output, target)
+                    self.train_metrics.update(loss_fn.__class__.__name__, loss.item())  # metric_fn마다 값 update
+                    total_loss += loss
+
+            self.scaler.scale(total_loss).backward()
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
 
             #  update loss value
             self.train_metrics.update("loss", total_loss.item())

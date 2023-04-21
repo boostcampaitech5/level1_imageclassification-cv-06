@@ -6,14 +6,15 @@ import pandas as pd
 import torch
 from PIL import Image
 from torch.utils.data import Dataset, Subset, random_split
-from torchvision.transforms import CenterCrop, ColorJitter, Compose, Normalize, Resize, ToTensor
+from torchvision.transforms import CenterCrop, ColorJitter, Compose, Normalize, RandomHorizontalFlip, RandomRotation, ToTensor
 
 
-class BaseAugmentation:
+class TestAugmentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = Compose(
             [
-                Resize(resize, Image.BILINEAR),
+                CenterCrop((360, 360)),
+                # Resize(resize, Image.BILINEAR),
                 ToTensor(),
                 Normalize(mean=mean, std=std),
             ]
@@ -21,6 +22,12 @@ class BaseAugmentation:
 
     def __call__(self, image):
         return self.transform(image)
+
+    def __str__(self):
+        component = ""
+        for t in self.transform.transforms:
+            component += f"{t},"
+        return component
 
 
 class AddGaussianNoise(object):
@@ -44,12 +51,13 @@ class CustomAugmentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = Compose(
             [
-                CenterCrop((320, 256)),
-                Resize(resize, Image.BILINEAR),
+                RandomHorizontalFlip(),
+                RandomRotation(15),
+                CenterCrop((360, 360)),
+                # Resize(resize, Image.BILINEAR),
                 ColorJitter(0.1, 0.1, 0.1, 0.1),
                 ToTensor(),
                 Normalize(mean=mean, std=std),
-                AddGaussianNoise(),
             ]
         )
 
@@ -88,14 +96,18 @@ class MyDataset(Dataset):
     def set_transform(self, transform):
         self.transform = transform
 
+    def get_transform(self):
+        return self.transform
+
     def __getitem__(self, index):
         assert self.transform is not None, ".set_tranform 메소드를 이용하여 transform 을 주입해주세요"
 
         image = Image.open(os.path.join(self.data_dir, self.image_paths[index]))
-        _class, age_class, mask_class, gender_class = self.labels.iloc[index][1:]
+        labels = self.labels.iloc[index][1:]
 
         image_transform = self.transform(image)
-        return image_transform, _class  # [_class, age_class, mask_class, gender_class]
+
+        return image_transform, labels["re_labeled_class1"]  # [_class, age_class, mask_class, gender_class]
 
     def __len__(self):
         return len(self.image_paths)
@@ -136,3 +148,7 @@ class TestDataset(Dataset):
 
     def __len__(self):
         return len(self.img_paths)
+
+
+if __name__ == "__main__":
+    print(TestAugmentation((122, 122), 1, 0.5))

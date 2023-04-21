@@ -1,4 +1,5 @@
 import argparse
+import copy
 import glob
 import json
 import multiprocessing
@@ -11,13 +12,16 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from torch.optim.lr_scheduler import StepLR
+
+# from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 
 import wandb
 from datasets.base_dataset import MaskBaseDataset
+from datasets.my_dataset import TestAugmentation
 from losses.base_loss import Accuracy, F1Loss, create_criterion
 from trainer.trainer import Trainer
+from utils.cosine_annealing_with_warmup import CosineAnnealingWarmupRestarts
 from utils.util import ensure_dir
 
 
@@ -83,11 +87,11 @@ def increment_path(path, exist_ok=False):
 
 
 def train(data_dir, model_dir, args):
-    wandb.init(project="mask_classification", config=vars(args))
+    wandb.init(entity="cv06", project="CV06_MaskClassification", config=vars(args))
 
     seed_everything(args.seed)
     save_dir = increment_path(os.path.join(model_dir, args.name))
-    label_dir = os.path.join(args.label_dir, "train_path_label.csv")
+    label_dir = os.path.join(args.label_dir, "re_labeled_data.csv")
     ensure_dir(save_dir)
 
     # -- settings
@@ -101,15 +105,19 @@ def train(data_dir, model_dir, args):
 
     # -- augmentation
     transform_module = getattr(import_module("datasets.my_dataset"), args.augmentation)  # default: BaseAugmentation
+
     transform = transform_module(
         resize=args.resize,
         mean=dataset.mean,
         std=dataset.std,
     )
-    dataset.set_transform(transform)
 
     # -- data_loader
     train_set, val_set = dataset.split_dataset()
+    train_set, val_set = train_set, copy.deepcopy(val_set)
+
+    train_set.dataset.set_transform(transform)
+    val_set.dataset.set_transform(TestAugmentation(args.resize, dataset.mean, dataset.std))
 
     train_loader = DataLoader(
         train_set,
@@ -140,19 +148,19 @@ def train(data_dir, model_dir, args):
         criterion.append(create_criterion(i))  # default: [cross_entropy]
 
     opt_module = getattr(import_module("torch.optim"), args.optimizer)  # default: SGD
-    optimizer = opt_module(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=5e-4)
-    scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
-
-    # if use Multi-task loss
-
-    scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
+    optimizer = opt_module(filter(lambda p: p.requires_grad, model.parameters()), lr=0, weight_decay=5e-4)
+    scheduler = CosineAnnealingWarmupRestarts(optimizer, 20, 1, 0.01, 0.00001, 5, 0.5)
+    # scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
     metrics = [Accuracy(), F1Loss()]
 
     # -- logging
     with open(os.path.join(save_dir, "config.json"), "w", encoding="utf-8") as f:
-        json.dump(vars(args), f, ensure_ascii=False, indent=4)
+        args_dict = vars(args)
+        args_dict["model_dir"] = save_dir
+        args_dict["TestAugmentation"] = val_set.dataset.get_transform().__str__()
+        json.dump(args_dict, f, ensure_ascii=False, indent=4)
 
-    # -- train
+    # --train
     trainer = Trainer(
         model,
         criterion,
@@ -196,7 +204,7 @@ if __name__ == "__main__":
     parser.add_argument("--early_stop", type=int, default=config["early_stop"], help="Early stop training when 10 epochs no improvement")
 
     # Container environment
-    parser.add_argument("--data_dir", type=str, default=os.environ.get("SM_CHANNEL_TRAIN", "/opt/ml/input/data/train/images"))
+    parser.add_argument("--data_dir", type=str, default=os.environ.get("SM_CHANNEL_TRAIN", "/opt/ml/input/data/train/bg_sub"))
     parser.add_argument("--model_dir", type=str, default=os.environ.get("SM_MODEL_DIR", "./experiment"))
     parser.add_argument("--label_dir", type=str, default="/opt/ml/input/data/train/")
     args = parser.parse_args()

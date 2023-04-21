@@ -1,16 +1,19 @@
 import argparse
+import json
 import multiprocessing
 import os
 from importlib import import_module
 
 import pandas as pd
 import torch
+from torchvision.transforms import CenterCrop, Compose, Normalize, ToTensor
 
-from datasets.base_dataset import MaskBaseDataset, TestDataset
+from datasets.base_dataset import MaskBaseDataset
+from datasets.my_dataset import TestDataset
 
 
 def load_model(saved_model, num_classes, device):
-    model_cls = getattr(import_module("model.base_model"), args.model)
+    model_cls = getattr(import_module("model.my_model"), args.model)
     model = model_cls(num_classes=num_classes)
 
     # tarpath = os.path.join(saved_model, 'best.tar.gz')
@@ -24,7 +27,7 @@ def load_model(saved_model, num_classes, device):
 
 
 @torch.no_grad()
-def inference(data_dir, model_dir, output_dir, args):
+def inference(data_dir, model_dir, args):
     """ """
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
@@ -33,12 +36,21 @@ def inference(data_dir, model_dir, output_dir, args):
     model = load_model(model_dir, num_classes, device).to(device)
     model.eval()
 
-    img_root = os.path.join(data_dir, "images")
+    img_root = os.path.join(data_dir, "bg_sub")
     info_path = os.path.join(data_dir, "info.csv")
     info = pd.read_csv(info_path)
 
     img_paths = [os.path.join(img_root, img_id) for img_id in info.ImageID]
-    dataset = TestDataset(img_paths, args.resize)
+    # Image.BILINEAR
+    transform = Compose(
+        [
+            CenterCrop((360, 360)),
+            # Resize(resize, Image.BILINEAR),
+            ToTensor(),
+            Normalize(mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)),
+        ]
+    )
+    dataset = TestDataset(img_paths, args.resize, transform=transform)
     loader = torch.utils.data.DataLoader(
         dataset,
         batch_size=args.batch_size,
@@ -58,7 +70,7 @@ def inference(data_dir, model_dir, output_dir, args):
             preds.extend(pred.cpu().numpy())
 
     info["ans"] = preds
-    save_path = os.path.join(output_dir, "output.csv")
+    save_path = os.path.join(model_dir, "output.csv")
     info.to_csv(save_path, index=False)
     print(f"Inference Done! Inference result saved at {save_path}")
 
@@ -67,21 +79,26 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     # Data and model checkpoints directories
-    parser.add_argument("--batch_size", type=int, default=1000, help="input batch size for validing (default: 1000)")
-    parser.add_argument("--resize", type=tuple, default=(96, 128), help="resize size for image when you trained (default: (96, 128))")
-    parser.add_argument("--model", type=str, default="BaseModel", help="model type (default: BaseModel)")
+    parser.add_argument("--exp", type=str, default="./experiment/exp", help="exp directory address")
+    args = parser.parse_args()
+    with open(os.path.join(args.exp, "config.json"), "r") as f:
+        config = json.load(f)
+
+    print(f"model dir: {config['model_dir']}")
+
+    parser.add_argument("--batch_size", type=int, default=256, help="input batch size for validing (default: 1000)")
+    parser.add_argument(
+        "--resize", type=tuple, default=config["resize"], help="resize size for image when you trained (default: (96, 128))"
+    )
+    parser.add_argument("--model", type=str, default=config["model"], help="model type (default: BaseModel)")
 
     # Container environment
     parser.add_argument("--data_dir", type=str, default=os.environ.get("SM_CHANNEL_EVAL", "/opt/ml/input/data/eval"))
-    parser.add_argument("--model_dir", type=str, default=os.environ.get("SM_CHANNEL_MODEL", "./experiment/exp"))
-    parser.add_argument("--output_dir", type=str, default=os.environ.get("SM_OUTPUT_DATA_DIR", "./output"))
+    parser.add_argument("--model_dir", type=str, default=config["model_dir"])
 
     args = parser.parse_args()
 
     data_dir = args.data_dir
     model_dir = args.model_dir
-    output_dir = args.output_dir
 
-    os.makedirs(output_dir, exist_ok=True)
-
-    inference(data_dir, model_dir, output_dir, args)
+    inference(data_dir, model_dir, args)
