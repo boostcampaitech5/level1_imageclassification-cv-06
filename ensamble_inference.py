@@ -2,12 +2,12 @@ import argparse
 import json
 import multiprocessing
 import os
-from importlib import import_module
 import warnings
+from importlib import import_module
+
 import numpy as np
 import pandas as pd
 import torch
-from PIL import Image
 from torchvision.transforms import *
 
 from datasets.base_dataset import MaskBaseDataset
@@ -39,22 +39,16 @@ def inference(model_dir, args, img_paths, num):
     model.eval()
 
     # Image.BILINEAR
-    if args.augmentation == "CustomAugmentation":
-        transform = Compose(
-            [
-                Resize(size=args.resize, interpolation=Image.BILINEAR, max_size=None, antialias=None),
-                ToTensor(),
-                Normalize(mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)),
-            ]
-        )
-    else:
-        transform = Compose(
-            [
-                Resize(size=args.resize, interpolation=Image.BILINEAR, max_size=None, antialias=None),
-                ToTensor(),
-                Normalize(mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)),
-            ]
-        )
+    transform = Compose(
+        [
+            RandomHorizontalFlip(),
+            RandomRotation((-15, 15)),
+            CenterCrop((470, 380)),
+            ColorJitter(0.1, 0.1, 0.1, 0.1),
+            ToTensor(),
+            Normalize(mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)),
+        ]
+    )
     dataset = TestDataset(img_paths, args.resize, transform=transform)
     loader = torch.utils.data.DataLoader(
         dataset,
@@ -65,23 +59,22 @@ def inference(model_dir, args, img_paths, num):
         drop_last=False,
     )
 
+    TTA = 3
     print("Calculating inference results..")
-    pred_soft = None
+    preds = np.zeros((len(img_paths), num_classes, TTA))
     with torch.no_grad():
-        for idx, images in enumerate(loader):
-            images = images.to(device)
-            pred = model(images)
-            soft_max = torch.nn.Softmax(dim=0)
-            pred_out = soft_max(pred)
-            if idx == 0:
-                pred_soft = pred_out.cpu().numpy()
-            else:
-                pred_soft = np.concatenate((pred_soft, pred_out.cpu().numpy()), axis=0)
-            if idx % 10 == 0:
-                print("%d" % (idx * args.batch_size))
+        for tta_idx in range(TTA):
+            pred_idx = 0
+            for images in loader:
+                images = images.to(device)
+                pred = model(images)
+                preds[pred_idx : pred_idx + len(images), :, tta_idx] = pred.cpu().numpy()
+                pred_idx += len(images)
+
+    mean_preds = preds.mean(axis=2)
 
     print("Inference Done! %d" % (num + 1))
-    return pred_soft
+    return mean_preds
 
 
 def voting(soft_results, info):
@@ -93,7 +86,7 @@ def voting(soft_results, info):
 
 def ensemble(models, base_path):
     data_dir = "/opt/ml/input/data/eval"
-    img_root = os.path.join(data_dir, "images")
+    img_root = os.path.join(data_dir, "bg_sub")
     info_path = os.path.join(data_dir, "info.csv")
     info = pd.read_csv(info_path)
     img_paths = [os.path.join(img_root, img_id) for img_id in info.ImageID]
@@ -109,7 +102,7 @@ def ensemble(models, base_path):
         with open(os.path.join(args.exp, "config.json"), "r") as f:
             config = json.load(f)
 
-        parser.add_argument("--batch_size", type=int, default=200, help="input batch size for validing (default: 1000)")
+        parser.add_argument("--batch_size", type=int, default=500, help="input batch size for validing (default: 1000)")
         parser.add_argument("--resize", type=tuple, default=config["resize"], help="resize size for image when you trained (default: (96, 128))")
         parser.add_argument("--model", type=str, default=config["model"], help="model type (default: BaseModel)")
 
